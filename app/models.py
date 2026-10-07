@@ -126,3 +126,50 @@ class Match(Base):
 
     request: Mapped[UserRequest] = relationship(back_populates="matches")
     offer: Mapped[ParsedOffer] = relationship(back_populates="matches")
+
+
+class FormApplication(Base):
+    __tablename__ = "form_applications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    retailer_name: Mapped[str] = mapped_column(String(255), index=True)
+    form_url: Mapped[str] = mapped_column(String(1000))
+    form_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    raw_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[RecordStatus] = mapped_column(SAEnum(RecordStatus), default=RecordStatus.pending, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    submissions: Mapped[list[FormSubmission]] = relationship(back_populates="application")
+    field_mappings: Mapped[list[FormFieldMapping]] = relationship(back_populates="application")
+
+
+class FormFieldMapping(Base):
+    __tablename__ = "form_field_mappings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey("form_applications.id"), index=True)
+    field_name: Mapped[str] = mapped_column(String(255))
+    field_type: Mapped[str] = mapped_column(String(50))
+    product_field: Mapped[str] = mapped_column(String(255))
+    xpath: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    css_selector: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    required: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    application: Mapped[FormApplication] = relationship(back_populates="field_mappings")
+
+
+class FormSubmission(Base):
+    __tablename__ = "form_submissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey("form_applications.id"), index=True)
+    product_data: Mapped[str] = mapped_column(Text)
+    filled_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[RecordStatus] = mapped_column(SAEnum(RecordStatus), default=RecordStatus.pending, index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    application: Mapped[FormApplication] = relationship(back_populates="submissions")

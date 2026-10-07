@@ -73,3 +73,43 @@ create table if not exists matches (
     message_sent boolean default false,
     created_at timestamp default current_timestamp
 );
+
+create table if not exists form_applications (
+    id integer primary key,
+    retailer_name varchar(255) not null,
+    form_url varchar(1000) not null,
+    form_name varchar(255),
+    raw_payload text,
+    status varchar(20) default 'pending',
+    created_at timestamp default current_timestamp,
+    updated_at timestamp default current_timestamp
+);
+
+create table if not exists form_field_mappings (
+    id integer primary key,
+    application_id integer not null references form_applications(id),
+    field_name varchar(255) not null,
+    field_type varchar(50) not null,
+    product_field varchar(255) not null,
+    xpath varchar(1000),
+    css_selector varchar(1000),
+    required boolean default false,
+    created_at timestamp default current_timestamp
+);
+
+create table if not exists form_submissions (
+    id integer primary key,
+    application_id integer not null references form_applications(id),
+    product_data text not null,
+    filled_data text,
+    status varchar(20) default 'pending',
+    error_message text,
+    created_at timestamp default current_timestamp,
+    submitted_at timestamp
+);
+
+create index if not exists idx_form_applications_retailer on form_applications(retailer_name);
+create index if not exists idx_form_applications_status on form_applications(status);
+create index if not exists idx_form_field_mappings_application on form_field_mappings(application_id);
+create index if not exists idx_form_submissions_application on form_submissions(application_id);
+create index if not exists idx_form_submissions_status on form_submissions(status);
