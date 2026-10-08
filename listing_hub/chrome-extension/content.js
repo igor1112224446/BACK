@@ -473,7 +473,9 @@ async function fillEtagi(d) {
 // ---------- Threads: заполняем окно нового поста (текст + фото), публикуешь сам ----------
 async function fillThreads(d, photos, lang) {
   const ok = [], miss = [];
-  const text = stripLinks(d["social_" + lang] || d.social_ru || d["description_" + lang] || "").slice(0, 500);
+  // пост из перевода объявления (threads_post) — как есть, со ссылкой на канал; иначе — обычный текст объявления
+  const text = d.threads_post ? d.threads_post.slice(0, 500)
+    : stripLinks(d["social_" + lang] || d.social_ru || d["description_" + lang] || "").slice(0, 500);
   const editor = () => document.querySelector('[role="dialog"] [contenteditable="true"]')
     || document.querySelector('[contenteditable="true"][role="textbox"]') || document.querySelector('[contenteditable="true"]');
   let box = editor();

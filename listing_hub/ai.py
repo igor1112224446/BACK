@@ -86,30 +86,42 @@ def write_descriptions(cfg, d):
     return _ask(cfg, prompt, 3000)
 
 
+THREADS_CONTACTS = {"whatsapp": "+79146596272 (WhatsApp)", "telegram": "@Rentch_srb",
+                    "channel": "https://t.me/rentch_serbia"}
+
+
+def threads_post_text(cfg, district_ru, area):
+    """Пост для Threads по фиксированному шаблону: только район и площадь меняются, контакты — из config.yaml
+    (раздел threads) или из значений по умолчанию."""
+    c = {**THREADS_CONTACTS, **(cfg.get("threads") or {})}
+    head = "Сдаётся квартира" + (f" в районе {district_ru}" if district_ru else "") + (f", {area} м²" if area else "") + "."
+    lines = [head,
+             f"Записаться на просмотр: {c['whatsapp']} или в телеге: {c['telegram']}",
+             f"Другие квартиры вы можете найти в нашем телеграм-канале: {c['channel']}"]
+    post = "\n".join(lines)
+    return post if len(post) <= 500 else post[:497] + "…"   # лимит Threads
+
+
 def translate_and_summarize(cfg, title, text):
     """Объявление с любого сайта (например, halooglasi.com, сербский язык) → полный перевод на русский
-    и короткий пост для Threads. Контакты (телефон, Telegram) берутся из самого объявления."""
+    и пост для Threads по шаблону. Модель отдаёт только перевод, район и площадь."""
     prompt = (
         "Это текст веб-страницы с объявлением о недвижимости (язык может быть сербский, английский или другой). "
         "На странице есть меню, реклама и блоки «похожие объявления» — используй ТОЛЬКО основное объявление.\n"
-        "Верни JSON с двумя ключами:\n"
+        "Верни JSON с ключами:\n"
         "\"ru_translation\" — полный перевод основного текста объявления на русский язык, без сокращений; "
-        "параметры (цена, площадь, этаж и т.п.) переводи тоже.\n"
-        "\"threads_post\" — короткий пост для Threads на русском, не длиннее 450 символов, в таком виде:\n"
-        "первая строка — одно предложение о квартире: тип сделки, тип объекта, район и 2–3 главных преимущества;\n"
-        "далее — «Цена …» с суммой и валютой как в объявлении;\n"
-        "далее — «Записаться на просмотр можно по телефону: …» с телефоном из объявления, если он есть;\n"
-        "далее — «Или в телеграме: …» с Telegram-аккаунтом из объявления, если он есть.\n"
-        "Если телефона или Telegram в объявлении нет — не придумывай их и не пиши эту строку. "
-        "Не добавляй ссылок на сайт, хэштегов и эмодзи.\n"
+        "параметры (цена, площадь, этаж и т.п.) переводи тоже;\n"
+        "\"district_ru\" — район по-русски (например, «Савский венац»), или пустая строка, если района нет;\n"
+        "\"area_m2\" — площадь в м² числом, или null.\n"
+        "В переводе сохрани контакты и ссылки из объявления как есть.\n"
         f"Заголовок: {title}\n"
         f"Текст:\n{text[:12000]}\n\nВерни ТОЛЬКО JSON-объект."
     )
     res = _ask(cfg, prompt, 3000)
-    post = str(res.get("threads_post", "")).strip()
-    if len(post) > 500:   # лимит Threads
-        post = post[:497].rsplit(" ", 1)[0].rstrip(",.;: ") + "…"
-    return {"ru_translation": str(res.get("ru_translation", "")).strip(), "threads_post": post}
+    area = res.get("area_m2")
+    area = (int(area) if isinstance(area, (int, float)) and float(area).is_integer() else area) or None
+    return {"ru_translation": str(res.get("ru_translation", "")).strip(),
+            "threads_post": threads_post_text(cfg, str(res.get("district_ru") or "").strip(), area)}
 
 
 def template_descriptions(cfg, d):

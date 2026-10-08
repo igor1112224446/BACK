@@ -120,6 +120,9 @@ $("#grab").onclick = async () => {
       $("#threadsPost").value = tp.value.threads_post;
       $("#threadsRu").value = tp.value.ru_translation;
       $("#threadsOut").hidden = false;
+      // пост сохраняем в объявление: при заполнении Threads он уйдёт именно этот текст
+      await api("/api/listings/" + it.id, { method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threads_post: tp.value.threads_post, ru_translation: tp.value.ru_translation }) });
       line += `\nПост для Threads: ${tp.value.threads_post.length} из 500 символов.`;
     } else if (tp.status === "rejected") {
       line += `\nПеревод не готов: ${tp.reason.message}`;
