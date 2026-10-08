@@ -116,6 +116,7 @@ $("#grab").onclick = async () => {
       has("floors_total", "этажность"), has("notes", "описание")].join("  ");
     let line = it.duplicate ? "Это объявление уже было в сервисе — параметры обновлены." :
       `Сохранено: ${d.price ? Number(d.price).toLocaleString("ru-RU") + (d.currency === "GEL" ? " ₾" : " $") : "без цены"}, фото: ${it.photos_wm.length}`;
+    if (!CFG_AI) line += "\n⚠ ИИ выключен: нет ANTHROPIC_API_KEY. Перевод и пост не созданы, в Threads уйдёт старый текст.";
     if (tp.status === "fulfilled" && tp.value) {
       $("#threadsPost").value = tp.value.threads_post;
       $("#threadsRu").value = tp.value.ru_translation;
