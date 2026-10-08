@@ -90,13 +90,19 @@ THREADS_CONTACTS = {"whatsapp": "+79146596272 (WhatsApp)", "telegram": "@Rentch_
                     "channel": "https://t.me/rentch_serbia"}
 
 
-def threads_post_text(cfg, district_ru, area):
+CURRENCY_WORDS = {"EUR": "евро", "USD": "долларов", "RSD": "динаров", "GEL": "лари"}
+
+
+def threads_post_text(cfg, district_ru, area, price=None, currency=None):
     """Пост для Threads по фиксированному шаблону: только район и площадь меняются, контакты — из config.yaml
     (раздел threads) или из значений по умолчанию."""
     c = {**THREADS_CONTACTS, **(cfg.get("threads") or {})}
     head = "Сдаётся квартира" + (f" в районе {district_ru}" if district_ru else "") + (f", {area} м²" if area else "") + "."
-    lines = [head,
-             f"Записаться на просмотр: {c['whatsapp']} или в телеге: {c['telegram']}",
+    lines = [head]
+    if price:
+        code = (currency or "").upper()
+        lines.append(f"Цена {price} {CURRENCY_WORDS.get(code, code)}".rstrip())
+    lines += [f"Записаться на просмотр: {c['whatsapp']} или в телеге: {c['telegram']}",
              f"Другие квартиры вы можете найти в нашем телеграм-канале: {c['channel']}"]
     post = "\n".join(lines)
     return post if len(post) <= 500 else post[:497] + "…"   # лимит Threads
@@ -113,6 +119,8 @@ def translate_and_summarize(cfg, title, text):
         "параметры (цена, площадь, этаж и т.п.) переводи тоже;\n"
         "\"district_ru\" — район по-русски (например, «Савский венац»), или пустая строка, если района нет;\n"
         "\"area_m2\" — площадь в м² числом, или null.\n"
+        "\"price\" — цена числом (без валюты), или null;\n"
+        "\"currency\" — код валюты цены: EUR, USD, RSD или GEL, или null.\n"
         "В переводе сохрани контакты и ссылки из объявления как есть.\n"
         f"Заголовок: {title}\n"
         f"Текст:\n{text[:12000]}\n\nВерни ТОЛЬКО JSON-объект."
@@ -121,7 +129,8 @@ def translate_and_summarize(cfg, title, text):
     area = res.get("area_m2")
     area = (int(area) if isinstance(area, (int, float)) and float(area).is_integer() else area) or None
     return {"ru_translation": str(res.get("ru_translation", "")).strip(),
-            "threads_post": threads_post_text(cfg, str(res.get("district_ru") or "").strip(), area)}
+            "threads_post": threads_post_text(cfg, str(res.get("district_ru") or "").strip(), area,
+                                              res.get("price"), res.get("currency"))}
 
 
 def template_descriptions(cfg, d):
