@@ -230,15 +230,12 @@ class PageText(BaseModel):
 
 @app.post("/api/threads-post")
 def threads_post(req: PageText):
-    """Объявление со страницы любого сайта (кнопка в расширении) → перевод на русский + пост для Threads."""
-    if not ai.enabled(CFG):
-        raise HTTPException(400, "ИИ не подключён: задай ANTHROPIC_API_KEY и ai.enabled: true")
+    """Объявление со страницы (кнопка в расширении) → пост для Threads. Без ИИ: поля берутся из текста страницы."""
     if not req.text.strip():
         raise HTTPException(422, "На странице не нашлось текста объявления")
-    try:
-        return {**ai.translate_and_summarize(CFG, req.title, req.text), "source_url": req.source_url}
-    except Exception as e:
-        raise HTTPException(502, f"ИИ не смог обработать объявление: {e}")
+    f = ai.threads_fields(req.title, req.text)
+    post = ai.threads_post_text(CFG, f["district_ru"], f["area_m2"], f["price"], f["currency"])
+    return {"threads_post": post, "ru_translation": "", "fields": f, "source_url": req.source_url}
 
 
 @app.get("/api/listings")

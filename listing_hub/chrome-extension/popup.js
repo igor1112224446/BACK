@@ -105,7 +105,7 @@ $("#grab").onclick = async () => {
     if (!r?.ok) throw new Error("Не удалось прочитать страницу");
     const p = r.page;
     st(`Нашёл ${p.photo_urls.length} фото. Сохраняю, перевожу и пишу пост${CFG_AI ? "" : " (ИИ отключён — только сохранение)"}…`);
-    const post = (p.text && CFG_AI) ? api("/api/threads-post", { method: "POST", headers: { "Content-Type": "application/json" },
+    const post = p.text ? api("/api/threads-post", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source_url: p.source_url, title: p.title, text: p.text }) }) : Promise.resolve(null);
     const [imp, tp] = await Promise.allSettled([
       api("/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }), post]);
@@ -116,11 +116,14 @@ $("#grab").onclick = async () => {
       has("floors_total", "этажность"), has("notes", "описание")].join("  ");
     let line = it.duplicate ? "Это объявление уже было в сервисе — параметры обновлены." :
       `Сохранено: ${d.price ? Number(d.price).toLocaleString("ru-RU") + (d.currency === "GEL" ? " ₾" : " $") : "без цены"}, фото: ${it.photos_wm.length}`;
-    if (!CFG_AI) line += "\n⚠ ИИ выключен: нет ANTHROPIC_API_KEY. Перевод и пост не созданы, в Threads уйдёт старый текст.";
     if (tp.status === "fulfilled" && tp.value) {
       $("#threadsPost").value = tp.value.threads_post;
       $("#threadsRu").value = tp.value.ru_translation;
+      $("#threadsRu").closest("details").hidden = !tp.value.ru_translation;
       $("#threadsOut").hidden = false;
+      const f = tp.value.fields || {};
+      const miss = [!f.district_ru && "район", !f.area_m2 && "площадь", !f.price && "цена"].filter(Boolean);
+      if (miss.length) line += `\n⚠ Не нашёл в тексте: ${miss.join(", ")}. Проверь пост и поправь вручную.`;
       // пост сохраняем в объявление: при заполнении Threads он уйдёт именно этот текст
       await api("/api/listings/" + it.id, { method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ threads_post: tp.value.threads_post, ru_translation: tp.value.ru_translation }) });

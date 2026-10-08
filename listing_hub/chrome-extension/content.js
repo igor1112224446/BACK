@@ -512,7 +512,7 @@ async function fillThreads(d, photos, lang) {
       ok.push(`Фото: ${dt.files.length}`);
     } else miss.push("Фото: не нашёл кнопку добавления фото в окне поста");
   }
-  if (!d.threads_post) miss.push("Пост без перевода: старый шаблон с телефоном из config. Включи ИИ (ANTHROPIC_API_KEY) и сохрани объявление заново");
+  if (!d.threads_post) miss.push("Пост не создан: сохрани объявление кнопкой «Сохранить, перевести и сделать пост для Threads»");
   miss.push("Проверь пост и нажми «Опубликовать» в Threads");
   return { ok, miss };
 }

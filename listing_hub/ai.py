@@ -1,6 +1,7 @@
 """ИИ-часть: разбор свободного текста в поля объекта и тексты объявления на 3 языках."""
 import json
 import os
+import unicodedata
 
 FIELDS = {
     "deal": "sale | rent | daily_rent",
@@ -108,29 +109,58 @@ def threads_post_text(cfg, district_ru, area, price=None, currency=None):
     return post if len(post) <= 500 else post[:497] + "…"   # лимит Threads
 
 
-def translate_and_summarize(cfg, title, text):
-    """Объявление с любого сайта (например, halooglasi.com, сербский язык) → полный перевод на русский
-    и пост для Threads по шаблону. Модель отдаёт только перевод, район и площадь."""
-    prompt = (
-        "Это текст веб-страницы с объявлением о недвижимости (язык может быть сербский, английский или другой). "
-        "На странице есть меню, реклама и блоки «похожие объявления» — используй ТОЛЬКО основное объявление.\n"
-        "Верни JSON с ключами:\n"
-        "\"ru_translation\" — полный перевод основного текста объявления на русский язык, без сокращений; "
-        "параметры (цена, площадь, этаж и т.п.) переводи тоже;\n"
-        "\"district_ru\" — район по-русски (например, «Савский венац»), или пустая строка, если района нет;\n"
-        "\"area_m2\" — площадь в м² числом, или null.\n"
-        "\"price\" — цена числом (без валюты), или null;\n"
-        "\"currency\" — код валюты цены: EUR, USD, RSD или GEL, или null.\n"
-        "В переводе сохрани контакты и ссылки из объявления как есть.\n"
-        f"Заголовок: {title}\n"
-        f"Текст:\n{text[:12000]}\n\nВерни ТОЛЬКО JSON-объект."
-    )
-    res = _ask(cfg, prompt, 3000)
-    area = res.get("area_m2")
-    area = (int(area) if isinstance(area, (int, float)) and float(area).is_integer() else area) or None
-    return {"ru_translation": str(res.get("ru_translation", "")).strip(),
-            "threads_post": threads_post_text(cfg, str(res.get("district_ru") or "").strip(), area,
-                                              res.get("price"), res.get("currency"))}
+def _fold(s):
+    """Нижний регистр без диакритики: «Vračar» → «vracar», «Đorđe» → «djorde»."""
+    s = unicodedata.normalize("NFKD", s.lower())
+    return "".join(ch for ch in s if not unicodedata.combining(ch)).replace("đ", "dj")
+
+
+# районы Белграда: как пишут в объявлениях (латиница без диакритики и кириллица) → по-русски
+DISTRICTS = [
+    ("savski venac", "Савский венац"), ("савски венац", "Савский венац"),
+    ("novi beograd", "Новый Белград"), ("нови београд", "Новый Белград"),
+    ("stari grad", "Старый город"), ("стари град", "Старый город"),
+    ("zemun polje", "Земун Поле"), ("zemun", "Земун"), ("земун", "Земун"),
+    ("vracar", "Врачар"), ("врачар", "Врачар"),
+    ("cukarica", "Чукарица"), ("чукарица", "Чукарица"),
+    ("vozdovac", "Вождовац"), ("вождовац", "Вождовац"),
+    ("zvezdara", "Звездара"), ("звездара", "Звездара"),
+    ("palilula", "Палилула"), ("палилула", "Палилула"),
+    ("rakovica", "Раковица"), ("раковица", "Раковица"),
+    ("banovo brdo", "Баново брдо"), ("баново брдо", "Баново брдо"),
+    ("dorcol", "Дорчол"), ("дорћол", "Дорчол"),
+    ("konjarnik", "Конярник"), ("коњарник", "Конярник"),
+    ("senjak", "Сеньяк"), ("сењак", "Сеньяк"),
+    ("dedinje", "Дединье"), ("дедиње", "Дединье"),
+    ("karaburma", "Карабурма"), ("карабурма", "Карабурма"),
+    ("mirijevo", "Мириево"), ("миријево", "Мириево"),
+    ("vidikovac", "Видиковац"), ("видиковац", "Видиковац"),
+    ("medakovic", "Медакович"), ("медаковић", "Медакович"),
+    ("sremcica", "Сремчица"), ("сремчица", "Сремчица"),
+    ("bezanijska kosa", "Бежанийская коса"), ("бежанијска коса", "Бежанийская коса"),
+    ("cubura", "Чубура"), ("чубура", "Чубура"),
+    ("banjica", "Баница"), ("бањица", "Баница"),
+]
+_AREA_RE = _re.compile(r"(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:m|м)\s*(?:²|2)", _re.I)
+_PRICE_AFTER_RE = _re.compile(r"(\d{1,3}(?:[.,\s]\d{3})+|\d{3,7})\s*(?:€|EUR\b)", _re.I)
+_PRICE_BEFORE_RE = _re.compile(r"€\s*(\d{1,3}(?:[.,\s]\d{3})+|\d{3,7})", _re.I)
+
+
+def threads_fields(title, text):
+    """Район, площадь и цена в евро из текста объявления. Без ИИ: только регулярные выражения и словарь районов."""
+    raw = f"{title}\n{text}"
+    folded = _fold(raw)
+    district = next((ru for key, ru in sorted(DISTRICTS, key=lambda kv: -len(kv[0])) if key in folded), "")
+    area = None
+    m = _AREA_RE.search(raw)
+    if m:
+        value = float(m.group(1).replace(",", "."))
+        area = int(value) if value.is_integer() else value
+    price = None
+    m = _PRICE_AFTER_RE.search(raw) or _PRICE_BEFORE_RE.search(raw)
+    if m:
+        price = int(_re.sub(r"\D", "", m.group(1)))
+    return {"district_ru": district, "area_m2": area, "price": price, "currency": "EUR" if price else None}
 
 
 def template_descriptions(cfg, d):
