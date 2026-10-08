@@ -36,7 +36,7 @@ summary{cursor:pointer;color:var(--ink-2);font-size:12px}
 <body>
 <header><h1>Listing Hub</h1><span class="muted" id="site"></span></header>
 <div class="actions" style="border-bottom:1px solid var(--line)">
-  <button class="btn primary" id="grab">Сохранить объявление с этой страницы</button>
+  <button class="btn primary" id="grab">Сохранить, перевести и сделать пост для Threads</button>
   <div class="row">
     <select id="pages" aria-label="Сколько страниц собрать">
       <option value="1">эту страницу</option><option value="3">3 страницы</option>
@@ -46,7 +46,6 @@ summary{cursor:pointer;color:var(--ink-2);font-size:12px}
   </div>
   <button class="btn" id="stopAll" hidden>Остановить сбор</button>
   <div id="grabStatus" class="muted" role="status" style="white-space:pre-line"></div>
-  <button class="btn" id="threads">Перевести на русский и сделать пост для Threads</button>
   <div id="threadsOut" hidden>
     <label class="muted" for="threadsPost">Пост для Threads</label>
     <textarea id="threadsPost" rows="7" style="width:100%;box-sizing:border-box" aria-label="Пост для Threads"></textarea>
