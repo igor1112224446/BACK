@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Listing Hub — автозаполнение объявлений",
-  "version": "1.18.0",
-  "description": "Заполняет объявления на MyHome, SS.ge, Korter, в CRM Этажей и посты в Threads; собирает базу объявлений из выдачи MyHome; объявления в Facebook Marketplace.",
+  "version": "1.19.0",
+  "description": "Заполняет объявления на MyHome, SS.ge, Korter, в CRM Этажей и посты в Threads; собирает базу объявлений из выдачи MyHome; объявления в Facebook Marketplace. Переводит объявления с halooglasi.com и пишет пост для Threads.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Listing Hub"
@@ -27,7 +27,9 @@
     "https://threads.com/*",
     "https://www.threads.net/*",
     "https://threads.net/*",
-    "https://www.facebook.com/marketplace/*"
+    "https://www.facebook.com/marketplace/*",
+    "https://www.halooglasi.com/*",
+    "https://halooglasi.com/*"
   ],
   "content_scripts": [
     {
@@ -44,7 +46,9 @@
         "https://threads.com/*",
         "https://www.threads.net/*",
         "https://threads.net/*",
-        "https://www.facebook.com/marketplace/*"
+        "https://www.facebook.com/marketplace/*",
+        "https://www.halooglasi.com/*",
+        "https://halooglasi.com/*"
       ],
       "js": [
         "content.js"

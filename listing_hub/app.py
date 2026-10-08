@@ -222,6 +222,25 @@ def extract(body: FreeText):
         raise HTTPException(502, f"ИИ не смог разобрать текст: {e}")
 
 
+class PageText(BaseModel):
+    source_url: str = ""
+    title: str = ""
+    text: str = ""
+
+
+@app.post("/api/threads-post")
+def threads_post(req: PageText):
+    """Объявление со страницы любого сайта (кнопка в расширении) → перевод на русский + пост для Threads."""
+    if not ai.enabled(CFG):
+        raise HTTPException(400, "ИИ не подключён: задай ANTHROPIC_API_KEY и ai.enabled: true")
+    if not req.text.strip():
+        raise HTTPException(422, "На странице не нашлось текста объявления")
+    try:
+        return {**ai.translate_and_summarize(CFG, req.title, req.text), "source_url": req.source_url}
+    except Exception as e:
+        raise HTTPException(502, f"ИИ не смог обработать объявление: {e}")
+
+
 @app.get("/api/listings")
 def listings():
     from descriptions import localize

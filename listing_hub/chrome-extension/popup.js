@@ -121,6 +121,33 @@ $("#grab").onclick = async () => {
   b.disabled = false;
 };
 
+// ---------- перевод объявления на русский + пост для Threads (любой сайт, в т.ч. halooglasi.com) ----------
+$("#threads").onclick = async () => {
+  const b = $("#threads"), st = t => $("#grabStatus").textContent = t;
+  b.disabled = true; $("#threadsOut").hidden = true;
+  try {
+    if (!/^https?:/.test(TAB.url || "")) throw new Error("Открой страницу объявления на сайте");
+    if (!CFG_AI) throw new Error("Перевод нужен ИИ: задай ANTHROPIC_API_KEY и ai.enabled: true в config.yaml");
+    st("Читаю объявление…");
+    const r = await send({ type: "extract" });
+    if (!r?.ok) throw new Error("Не удалось прочитать страницу");
+    st("Перевожу и пишу пост… это займёт до минуты");
+    const res = await api("/api/threads-post", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source_url: r.page.source_url, title: r.page.title, text: r.page.text }) });
+    $("#threadsPost").value = res.threads_post;
+    $("#threadsRu").value = res.ru_translation;
+    $("#threadsOut").hidden = false;
+    st(`Пост: ${res.threads_post.length} из 500 символов.`);
+  } catch (e) {
+    st(e.message);
+  }
+  b.disabled = false;
+};
+const copyText = (sel, btn) => navigator.clipboard.writeText($(sel).value)
+  .then(() => { $(btn).textContent = "Скопировано ✓"; setTimeout(() => $(btn).textContent = btn === "#copyPost" ? "Копировать пост" : "Копировать перевод", 1500); });
+$("#copyPost").onclick = () => copyText("#threadsPost", "#copyPost");
+$("#copyRu").onclick = () => copyText("#threadsRu", "#copyRu");
+
 // ---------- сбор всей выдачи в базу (работает в фоне, окошко можно закрыть) ----------
 function showCollect(c) {
   if (!c || !c.msg) return;

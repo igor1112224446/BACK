@@ -46,6 +46,17 @@ summary{cursor:pointer;color:var(--ink-2);font-size:12px}
   </div>
   <button class="btn" id="stopAll" hidden>Остановить сбор</button>
   <div id="grabStatus" class="muted" role="status" style="white-space:pre-line"></div>
+  <button class="btn" id="threads">Перевести на русский и сделать пост для Threads</button>
+  <div id="threadsOut" hidden>
+    <label class="muted" for="threadsPost">Пост для Threads</label>
+    <textarea id="threadsPost" rows="7" style="width:100%;box-sizing:border-box" aria-label="Пост для Threads"></textarea>
+    <div class="row"><button class="btn" id="copyPost" style="flex:1">Копировать пост</button></div>
+    <details>
+      <summary>Полный перевод на русский</summary>
+      <textarea id="threadsRu" rows="10" style="width:100%;box-sizing:border-box" aria-label="Полный перевод"></textarea>
+      <button class="btn" id="copyRu">Копировать перевод</button>
+    </details>
+  </div>
 </div>
 <div id="list"><p class="muted" style="padding:14px">Загружаю объекты…</p></div>
 <div class="actions">
