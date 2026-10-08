@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Listing Hub — автозаполнение объявлений",
+  "version": "1.18.0",
+  "description": "Заполняет объявления на MyHome, SS.ge, Korter, в CRM Этажей и посты в Threads; собирает базу объявлений из выдачи MyHome; объявления в Facebook Marketplace.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Listing Hub"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*",
+    "https://home.ss.ge/*",
+    "https://ss.ge/*",
+    "https://statements.myhome.ge/*",
+    "https://www.myhome.ge/*",
+    "https://myhome.ge/*",
+    "https://korter.ge/*",
+    "https://www.korter.ge/*",
+    "https://ecosystem.etagi.com/*",
+    "https://www.threads.com/*",
+    "https://threads.com/*",
+    "https://www.threads.net/*",
+    "https://threads.net/*",
+    "https://www.facebook.com/marketplace/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://home.ss.ge/*",
+        "https://ss.ge/*",
+        "https://statements.myhome.ge/*",
+        "https://www.myhome.ge/*",
+        "https://myhome.ge/*",
+        "https://korter.ge/*",
+        "https://www.korter.ge/*",
+        "https://ecosystem.etagi.com/*",
+        "https://www.threads.com/*",
+        "https://threads.com/*",
+        "https://www.threads.net/*",
+        "https://threads.net/*",
+        "https://www.facebook.com/marketplace/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

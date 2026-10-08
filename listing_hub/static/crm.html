@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>База объявлений — Listing Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Noto+Sans+Georgian:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1B2A33;--ink-2:#51616C;--line:#DCE2E6;--paper:#FFFFFF;--surface:#F3F5F6;--accent:#2F6F8F;
+  --ok:#2E7D4F;--wait:#B7791F;--err:#B3261E;--idle:#E7ECEF;
+  --font:"Golos Text","Noto Sans Georgian",system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 var(--font);color:var(--ink);background:var(--surface)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{background:var(--paper);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}
+.count{color:var(--ink-2)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:600;text-decoration:none;color:var(--ink);display:inline-block}
+.btn.small{padding:4px 9px;font-size:12px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;padding:14px 24px;align-items:end}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-2)}
+.filters input,.filters select{border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:var(--paper);min-width:0}
+.filters .check{flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--ink);padding-bottom:7px}
+.wrap{padding:0 24px 40px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:980px}
+th{font-size:12px;text-align:left;color:var(--ink-2);font-weight:600;padding:10px;border-bottom:1px solid var(--line);background:var(--surface);cursor:pointer;white-space:nowrap}
+th[data-sort]:hover{color:var(--ink)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.st-not_interested td,tr.st-sold td{opacity:.55}
+.thumb{width:72px;height:54px;object-fit:cover;border-radius:5px;background:var(--idle);display:block}
+.price{font-weight:700;white-space:nowrap}
+.chg{font-size:12px;font-weight:600}
+.down{color:var(--ok)}.up{color:var(--err)}
+.muted{color:var(--ink-2);font-size:12px}
+.title{max-width:260px}
+.title a{color:var(--ink);text-decoration:none;font-weight:600}
+.title a:hover{text-decoration:underline}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--accent);color:#fff;margin-left:4px}
+.badge.obj{background:var(--ok)}
+select.status{border:1px solid var(--line);border-radius:6px;padding:5px 6px;background:var(--paper)}
+.s-new{border-left:4px solid var(--accent)!important}.s-called{border-left:4px solid var(--wait)!important}
+.s-agreed{border-left:4px solid var(--ok)!important}.s-not_interested,.s-sold{border-left:4px solid var(--line)!important}
+input.note{border:1px solid transparent;border-radius:6px;padding:5px 7px;width:100%;min-width:160px;background:transparent}
+input.note:hover,input.note:focus{border-color:var(--line);background:var(--paper)}
+.empty{padding:40px;text-align:center;color:var(--ink-2)}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:9px 14px;border-radius:8px;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+.badge.own{background:#E3F1E8;color:#2E7D4F}.badge.ag{background:#EEF1F4;color:#51616C}
+</style>
+</head>
+<body>
+<header>
+  <h1>База объявлений</h1><span class="count" id="count"></span>
+  <span class="spacer"></span>
+  <button class="btn" id="csv">Скачать CSV</button>
+  <a class="btn" href="/">← Объекты</a>
+</header>
+<div class="filters">
+  <label>Поиск<input id="q" placeholder="адрес, улица, заметка…"></label>
+  <label>Район<select id="fDistrict"><option value="">Все</option></select></label>
+  <label>Комнат<select id="fRooms"><option value="">Любое</option><option>1</option><option>2</option><option>3</option><option value="4">4+</option></select></label>
+  <label>Цена от, $<input id="fMin" type="number" step="1000" style="width:110px"></label>
+  <label>до, $<input id="fMax" type="number" step="1000" style="width:110px"></label>
+  <label>Статус<select id="fStatus"><option value="">Все</option></select></label>
+  <label>Продавец<select id="fSeller"><option value="">Все</option><option value="owner">Собственник</option><option value="agent">Агентство</option></select></label>
+  <label class="check"><input type="checkbox" id="fNew"> новые за 24 ч</label>
+  <label class="check"><input type="checkbox" id="fDrop"> цена снизилась</label>
+</div>
+<div class="wrap"><table>
+  <thead><tr>
+    <th></th><th data-sort="price">Цена</th><th data-sort="rooms">Комн.</th><th data-sort="area">м²</th><th data-sort="floor">Этаж</th>
+    <th>Объявление / адрес</th><th data-sort="created_at">Добавлено</th><th>Статус</th><th>Заметка</th><th></th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+</table></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const STATUS={new:"Новый",called:"Звонил",agreed:"Договорились",not_interested:"Не актуально",sold:"Продано"};
+let ALL=[], SORT={key:"created_at",dir:-1};
+Object.entries(STATUS).forEach(([k,v])=>$("#fStatus").insertAdjacentHTML("beforeend",`<option value="${k}">${v}</option>`));
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2000)}
+async function api(u,o){const r=await fetch(u,o);if(!r.ok)throw new Error(r.statusText);return r.json()}
+const money=v=>v?Number(v).toLocaleString("ru-RU")+" $":"—";
+const dateStr=s=>s?new Date(s).toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"}):"";
+
+function filtered(){
+  const q=$("#q").value.trim().toLowerCase(), dist=$("#fDistrict").value, rooms=$("#fRooms").value,
+        min=+$("#fMin").value||0, max=+$("#fMax").value||Infinity, st=$("#fStatus").value,
+        onlyNew=$("#fNew").checked, onlyDrop=$("#fDrop").checked, dayAgo=Date.now()-864e5;
+  return ALL.filter(l=>{const d=l.data;
+    if(q && !`${d.title||""} ${d.address||""} ${d.district||""} ${l.notes||""}`.toLowerCase().includes(q)) return false;
+    if(dist && d.district!==dist) return false;
+    if(rooms && (rooms==="4" ? !(d.rooms>=4) : String(d.rooms)!==rooms)) return false;
+    const p=+d.price||0; if(p && (p<min||p>max)) return false; if(!p && (min||max<Infinity)) return false;
+    if(st && l.status!==st) return false;
+    const sel=$("#fSeller").value; if(sel && d.seller!==sel) return false;
+    if(onlyNew && new Date(l.created_at).getTime()<dayAgo) return false;
+    if(onlyDrop && !(d.price_prev && +d.price<+d.price_prev)) return false;
+    return true;
+  }).sort((a,b)=>{const k=SORT.key, va=k==="created_at"?a.created_at:+(a.data[k]||0), vb=k==="created_at"?b.created_at:+(b.data[k]||0);
+    return (va>vb?1:va<vb?-1:0)*SORT.dir});
+}
+
+function render(){
+  const list=filtered();
+  $("#count").textContent=`${list.length} из ${ALL.length}`;
+  if(!list.length){$("#rows").innerHTML=`<tr><td colspan="10" class="empty">${ALL.length?"Под фильтр ничего не подходит.":"База пуста. Открой страницу выдачи MyHome, нажми значок Listing Hub и «Собрать все объявления со страницы в CRM»."}</td></tr>`;return}
+  const dayAgo=Date.now()-864e5;
+  $("#rows").innerHTML=list.map(l=>{const d=l.data;
+    const chg=d.price_prev?`<div class="chg ${+d.price<+d.price_prev?"down":"up"}">${+d.price<+d.price_prev?"▼":"▲"} было ${money(d.price_prev)}</div>`:"";
+    const isNew=new Date(l.created_at).getTime()>dayAgo;
+    return `<tr class="st-${l.status}" data-id="${l.id}">
+      <td class="s-${l.status}">${d.photo?`<img class="thumb" src="${esc(d.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<div class="thumb"></div>`}</td>
+      <td><div class="price">${money(d.price)}</div>${chg}</td>
+      <td>${d.rooms??"—"}</td><td>${d.area??"—"}</td>
+      <td>${d.floor?d.floor+(d.floors_total?"/"+d.floors_total:""):"—"}</td>
+      <td class="title"><a href="${esc(l.source_url)}" target="_blank" rel="noopener">${esc(d.title||"Объявление")}</a>${isNew?'<span class="badge">новое</span>':""}${l.in_objects?'<span class="badge obj">в объектах</span>':""}${d.seller==="owner"?'<span class="badge own">собственник</span>':d.seller==="agent"?'<span class="badge ag">агентство</span>':""}
+        <div class="muted">${esc([d.district,d.address].filter(Boolean).join(", "))}</div></td>
+      <td class="muted">${dateStr(l.created_at)}</td>
+      <td><select class="status" aria-label="Статус">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${k===l.status?"selected":""}>${v}</option>`).join("")}</select></td>
+      <td><input class="note" value="${esc(l.notes||"")}" placeholder="заметка…" aria-label="Заметка"></td>
+      <td style="white-space:nowrap"><a class="btn small" href="${esc(l.source_url)}" target="_blank" rel="noopener">Открыть ↗</a> <button class="btn small del" aria-label="Удалить">✕</button></td>
+    </tr>`}).join("");
+  document.querySelectorAll("#rows tr[data-id]").forEach(tr=>{
+    const id=tr.dataset.id;
+    tr.querySelector(".status").onchange=async e=>{await save(id,{status:e.target.value});const l=ALL.find(x=>x.id==id);l.status=e.target.value;render();toast("Статус сохранён")};
+    const n=tr.querySelector(".note");
+    const saveNote=async()=>{const l=ALL.find(x=>x.id==id); if((l.notes||"")===n.value) return; await save(id,{notes:n.value}); l.notes=n.value; toast("Заметка сохранена")};
+    n.onblur=saveNote; n.onkeydown=e=>{if(e.key==="Enter") n.blur()};
+    tr.querySelector(".del").onclick=async()=>{if(!confirm("Удалить объявление из базы?"))return;await fetch(`/api/leads/${id}`,{method:"DELETE"});ALL=ALL.filter(x=>x.id!=id);render()};
+  });
+}
+const save=(id,body)=>api(`/api/leads/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+
+function fillDistricts(){
+  const ds=[...new Set(ALL.map(l=>l.data.district).filter(Boolean))].sort();
+  const cur=$("#fDistrict").value;
+  $("#fDistrict").innerHTML='<option value="">Все</option>'+ds.map(d=>`<option ${d===cur?"selected":""}>${esc(d)}</option>`).join("");
+}
+$("#csv").onclick=()=>{
+  const rows=[["Цена $","Было $","Комнат","м²","Этаж","Этажей","Район","Адрес","Заголовок","Статус","Заметка","Добавлено","Ссылка"]]
+    .concat(filtered().map(l=>{const d=l.data;return[d.price,d.price_prev||"",d.rooms,d.area,d.floor,d.floors_total,d.district,d.address,d.title,STATUS[l.status],l.notes,l.created_at,l.source_url]}));
+  const csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";")).join("\n");
+  const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([csv],{type:"text/csv"})),download:"baza-obyavleniy.csv"});
+  a.click();
+};
+document.querySelectorAll("th[data-sort]").forEach(th=>th.onclick=()=>{const k=th.dataset.sort;SORT={key:k,dir:SORT.key===k?-SORT.dir:(k==="created_at"?-1:1)};render()});
+["#q","#fDistrict","#fRooms","#fMin","#fMax","#fStatus","#fSeller","#fNew","#fDrop"].forEach(s=>$(s).addEventListener("input",render));
+(async()=>{ALL=await api("/api/leads");fillDistricts();render()})();
+</script>
+</body>
+</html>

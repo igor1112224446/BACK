@@ -1,0 +1,6 @@
+hub.db
+hub-*.db
+backups/
+media/
+__pycache__/
+*.pyc
