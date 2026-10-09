@@ -330,10 +330,35 @@ def _download(url, referer):
         return r.read()
 
 
+def _save_photos(req, folder):
+    """Скачивает фото по ссылкам (сервер) и принимает данные, присланные из браузера (base64).
+    Возвращает (оригиналы, версии с логотипом)."""
+    raw, wm, i = [], [], 0
+    for url in req.photo_urls[:20]:
+        try:
+            content = _download(url, req.source_url)
+            if len(content) < 15_000:   # превью и иконки
+                continue
+            r, w = save_photo_bytes(folder, i, content)
+            raw.append(r); wm.append(w); i += 1
+        except Exception:
+            continue
+    for data_url in req.photo_data[:20]:
+        if i >= 20:
+            break
+        try:
+            content = base64.b64decode(data_url.split(",", 1)[1])
+            r, w = save_photo_bytes(folder, i, content)
+            raw.append(r); wm.append(w); i += 1
+        except Exception:
+            continue
+    return raw, wm
+
+
 @app.post("/api/import")
 def import_page(req: PageImport):
     """Сохранить объявление со страницы браузера (кнопка в расширении)."""
-    for it in store.all():  # это объявление уже сохраняли — обновляем параметры, тексты и фото не трогаем
+    for it in store.all():  # это объявление уже сохраняли — обновляем параметры и тексты
         if it["data"].get("source_url") == req.source_url:
             d = dict(it["data"])
             for k, v in req.guess.items():
@@ -342,6 +367,11 @@ def import_page(req: PageImport):
             d["deal"], d["property_type"] = "sale", "apartment"
             to_usd(d)
             store.update_data(it["id"], d)
+            if not it["photos_wm"]:   # фото не было (например, сайт не отдал их раньше) — докачиваем
+                raw, wm = _save_photos(req, MEDIA / uuid.uuid4().hex[:10])
+                if not wm:
+                    raise HTTPException(422, "Не удалось скачать ни одного фото с этой страницы")
+                store.set_all_photos(it["id"], raw, wm)
             return {**store.get(it["id"]), "duplicate": True}
 
     d = {k: v for k, v in req.guess.items() if v not in (None, "", [])}
@@ -364,26 +394,7 @@ def import_page(req: PageImport):
     to_usd(d)
     d.setdefault("city", "Тбилиси")
 
-    folder = MEDIA / uuid.uuid4().hex[:10]
-    raw, wm, i = [], [], 0
-    for url in req.photo_urls[:20]:
-        try:
-            content = _download(url, req.source_url)
-            if len(content) < 15_000:   # превью и иконки
-                continue
-            r, w = save_photo_bytes(folder, i, content)
-            raw.append(r); wm.append(w); i += 1
-        except Exception:
-            continue
-    for data_url in req.photo_data[:20]:
-        if i >= 20:
-            break
-        try:
-            content = base64.b64decode(data_url.split(",", 1)[1])
-            r, w = save_photo_bytes(folder, i, content)
-            raw.append(r); wm.append(w); i += 1
-        except Exception:
-            continue
+    raw, wm = _save_photos(req, MEDIA / uuid.uuid4().hex[:10])
     if not wm:
         raise HTTPException(422, "Не удалось скачать ни одного фото с этой страницы")
 

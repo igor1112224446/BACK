@@ -94,6 +94,22 @@ $("#scan").onclick = async () => {
   catch (e) { status("Сканер работает только на странице формы MyHome, SS.ge, Korter или CRM Этажей", true); }
 };
 
+// Сервер не смог скачать фото (сайт их не отдаёт серверу): берём их из браузера и отправляем как данные.
+async function importWithFallback(p, st) {
+  const send = body => api("/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    return await send(p);
+  } catch (e) {
+    if (!/422/.test(e.message) || !p.photo_urls.length) throw e;
+    st("Сервер не получил фото, беру их из браузера…");
+    const photo_data = [];
+    for (const u of p.photo_urls.slice(0, 20)) {
+      try { photo_data.push(await toDataURL(u)); } catch { /* пропускаем фото, которое браузер не отдал */ }
+    }
+    return send({ ...p, photo_urls: [], photo_data });
+  }
+}
+
 // Одна кнопка: сохраняет объявление в сервис, переводит на русский и пишет пост для Threads.
 $("#grab").onclick = async () => {
   const b = $("#grab"), st = t => $("#grabStatus").textContent = t;
@@ -107,8 +123,7 @@ $("#grab").onclick = async () => {
     st(`Нашёл ${p.photo_urls.length} фото. Сохраняю, перевожу и пишу пост${CFG_AI ? "" : " (ИИ отключён — только сохранение)"}…`);
     const post = p.text ? api("/api/threads-post", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source_url: p.source_url, title: p.title, text: p.text }) }) : Promise.resolve(null);
-    const [imp, tp] = await Promise.allSettled([
-      api("/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }), post]);
+    const [imp, tp] = await Promise.allSettled([importWithFallback(p, st), post]);
     if (imp.status === "rejected") throw imp.reason;
     const it = imp.value, d = it.data;
     const has = (k, name) => (d[k] ? "✓" : "✗") + " " + name;

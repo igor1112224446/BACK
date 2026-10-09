@@ -57,6 +57,11 @@ class Store:
                        (json.dumps(data, ensure_ascii=False), now(), lid))
         self.c.commit()
 
+    def set_all_photos(self, lid, photos, photos_wm):
+        self.c.execute("UPDATE listings SET photos=?, photos_wm=?, updated_at=? WHERE id=?",
+                       (json.dumps(photos), json.dumps(photos_wm), now(), lid))
+        self.c.commit()
+
     def set_photos(self, lid, photos_wm):
         self.c.execute("UPDATE listings SET photos_wm=?, updated_at=? WHERE id=?", (json.dumps(photos_wm), now(), lid))
         self.c.commit()
