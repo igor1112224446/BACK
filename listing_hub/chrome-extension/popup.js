@@ -110,18 +110,19 @@ async function importWithFallback(p, st) {
   }
 }
 
-// Одна кнопка: сохраняет объявление в сервис, переводит на русский и пишет пост для Threads.
-$("#grab").onclick = async () => {
-  const b = $("#grab"), st = t => $("#grabStatus").textContent = t;
-  b.disabled = true; $("#threadsOut").hidden = true;
+// Две кнопки: «Для Threads» — сохранить, перевести и сделать пост; «Для MyHome» — только сохранить в сервис.
+async function saveListing(mode) {
+  const btns = [$("#grabThreads"), $("#grabMyhome")], st = t => $("#grabStatus").textContent = t;
+  btns.forEach(b => b.disabled = true); $("#threadsOut").hidden = true;
   try {
     if (!/^https?:/.test(TAB.url || "")) throw new Error("Открой страницу объявления на сайте");
     st("Читаю страницу…");
     const r = await send({ type: "extract" });
     if (!r?.ok) throw new Error("Не удалось прочитать страницу");
     const p = r.page;
-    st(`Нашёл ${p.photo_urls.length} фото. Сохраняю, перевожу и пишу пост${CFG_AI ? "" : " (ИИ отключён — только сохранение)"}…`);
-    const post = p.text ? api("/api/threads-post", { method: "POST", headers: { "Content-Type": "application/json" },
+    const forThreads = mode === "threads";
+    st(`Нашёл ${p.photo_urls.length} фото. ` + (forThreads ? "Сохраняю, перевожу и пишу пост…" : "Сохраняю для MyHome…"));
+    const post = forThreads && p.text ? api("/api/threads-post", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source_url: p.source_url, title: p.title, text: p.text }) }) : Promise.resolve(null);
     const [imp, tp] = await Promise.allSettled([importWithFallback(p, st), post]);
     if (imp.status === "rejected") throw imp.reason;
@@ -153,8 +154,10 @@ $("#grab").onclick = async () => {
     if (/422/.test(msg)) msg = "Сайт не отдал фото. Пролистай галерею объявления, чтобы фото загрузились, и попробуй снова.";
     st(msg);
   }
-  b.disabled = false;
-};
+  btns.forEach(b => b.disabled = false);
+}
+$("#grabThreads").onclick = () => saveListing("threads");
+$("#grabMyhome").onclick = () => saveListing("myhome");
 
 const copyText = (sel, btn) => navigator.clipboard.writeText($(sel).value)
   .then(() => { $(btn).textContent = "Скопировано ✓"; setTimeout(() => $(btn).textContent = btn === "#copyPost" ? "Копировать пост" : "Копировать перевод", 1500); });

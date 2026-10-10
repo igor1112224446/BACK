@@ -36,7 +36,10 @@ summary{cursor:pointer;color:var(--ink-2);font-size:12px}
 <body>
 <header><h1>Listing Hub</h1><span class="muted" id="site"></span></header>
 <div class="actions" style="border-bottom:1px solid var(--line)">
-  <button class="btn primary" id="grab">Сохранить, перевести и сделать пост для Threads</button>
+  <div class="row">
+    <button class="btn primary" id="grabThreads" style="flex:1">Для Threads</button>
+    <button class="btn" id="grabMyhome" style="flex:1">Для MyHome</button>
+  </div>
   <div class="row">
     <select id="pages" aria-label="Сколько страниц собрать">
       <option value="1">эту страницу</option><option value="3">3 страницы</option>
