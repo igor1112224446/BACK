@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Listing Hub — автозаполнение объявлений",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "Заполняет объявления на MyHome, SS.ge, Korter, в CRM Этажей и посты в Threads; собирает базу объявлений из выдачи MyHome; объявления в Facebook Marketplace. Переводит объявления с halooglasi.com и пишет пост для Threads.",
   "action": {
     "default_popup": "popup.html",

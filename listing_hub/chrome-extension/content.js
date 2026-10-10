@@ -75,6 +75,7 @@ const PROFILES = {
   korter: {
     title: "Korter",
     category: null,
+    chipGroups: true,          // комнаты и спальни — кнопками 1 2 3 4 5+
     deal: {
       sale: ["Продажа", "Продать", "Продается", "იყიდება", "გაყიდვა", "Sale", "Sell", "For sale"],
       rent: ["Аренда", "Сдать", "Сдается", "ქირავდება", "Rent", "For rent"],
@@ -379,6 +380,35 @@ async function attachPhotos(dataUrls) {
 // В CRM редактируются уже существующие объекты, поэтому заполняем ТОЛЬКО пустые поля и ничего не перезаписываем.
 const ETAGI_TABS = ["О сделке", "Об объекте", "Характеристика объекта", "Паспорт объекта"];
 
+// Нажимает кнопку-чип (1 2 3 4 5+) в группе с подписью и проверяет, что она стала активной.
+// Для «5 и больше» берёт кнопку с «5+», для спален — «4+». Возвращает true только если выбор подтверждён.
+async function pickChipGroup(groupLabels, value, plusFrom, otherLabels) {
+  const n = Math.round(Number(value));
+  if (!n) return false;
+  const text = n >= plusFrom ? `${plusFrom}+` : String(n);
+  const labelEl = findByText(groupLabels, document, false).find(el => visible(el));
+  if (!labelEl) return false;
+  const styleOf = el => { const c = getComputedStyle(el); return [c.backgroundColor, c.color, c.borderColor].join("|"); };
+  let box = labelEl;
+  for (let i = 0; i < 5 && box; i++) {
+    box = box.parentElement;
+    if (!box) break;
+    // не выходим в контейнер, где есть соседняя группа (спальни не должны попасть в комнаты)
+    if (otherLabels.some(l => box.innerText && box.innerText.includes(l))) break;
+    const chip = [...box.querySelectorAll("button, [role=button], [role=radio], label, li, div, span")]
+      .filter(el => visible(el) && norm(el.innerText || "") === norm(text) && after(labelEl, el))
+      .map(el => el.closest("button, label, [role=button], [role=radio], li") || el)[0];
+    if (!chip) continue;
+    const before = styleOf(chip);
+    const wasActive = /(^|\s|-)(active|selected|checked|current)(\s|$|-)/i.test(chip.className || "");
+    realClick(chip);
+    await sleep(400);
+    const active = chip.getAttribute("aria-pressed") === "true" || chip.getAttribute("aria-checked") === "true" ||
+      /(^|\s|-)(active|selected|checked|current)(\s|$|-)/i.test(chip.className || "");
+    return active || (!wasActive && styleOf(chip) !== before);
+  }
+  return false;
+}
 function chipSelected(container) {
   return [...container.querySelectorAll("button, [role=button], [role=radio], label, li, div, span")].some(el =>
     visible(el) && (el.getAttribute("aria-pressed") === "true" || el.getAttribute("aria-checked") === "true" ||
@@ -550,6 +580,13 @@ async function fillForm(platform, listing, photos, lang, contact, rate) {
   for (const f of FIELDS) {
     const v = d[f.key];
     if (v === undefined || v === null || v === "") continue;
+    if (P.chipGroups && (f.key === "rooms" || f.key === "bedrooms")) {
+      const isRooms = f.key === "rooms";
+      await step(`${f.name}: ${isRooms ? (v >= 5 ? "5+" : v) : (v >= 4 ? "4+" : v)}`, () => pickChipGroup(
+        isRooms ? ["Количество комнат", "Комнаты"] : ["Количество спален", "Спальни"], v, isRooms ? 5 : 4,
+        isRooms ? ["Количество спален", "Спальни"] : ["Количество комнат", "Комнаты"]));
+      continue;
+    }
     if (f.key === "price") {
       if (P.priceInGel && rate) {
         const gel = Math.round(v * rate / 100) * 100;
@@ -690,15 +727,10 @@ async function fillDescriptions(d, fallbackLang) {
   const taTop = ta0.getBoundingClientRect().top + scrollY;
   // вкладка языка должна быть рядом с полем (не дальше ~300px по вертикали) — так не заденем язык всего сайта в шапке
   const near = el => Math.abs(el.getBoundingClientRect().top + scrollY - taTop) < 300 && !el.closest("header");
-  let box = ta0, tabs = {};
-  for (let i = 0; i < 7 && box && Object.keys(tabs).length < 2; i++) {
-    box = box.parentElement;
-    if (!box) break;
-    tabs = {};
-    for (const l of ["ka", "ru", "en"]) {
-      const t = findByText(LANG_TABS[l], box, true).find(near);
-      if (t) tabs[l] = t;
-    }
+  const tabs = {};
+  for (const l of ["ka", "ru", "en"]) {
+    const t = findByText(LANG_TABS[l], document, true).find(near);
+    if (t) tabs[l] = t;
   }
   if (Object.keys(tabs).length >= 2) {
     for (const l of ["ka", "ru", "en"]) {
@@ -706,7 +738,9 @@ async function fillDescriptions(d, fallbackLang) {
       if (!textOf(l)) { miss.push(`Описание (${l}): нет текста — нажми в сервисе «Перевести»`); continue; }
       const tabEl = tabs[l].closest("button, [role=tab], li, a, label") || tabs[l];
       realClick(tabEl); await sleep(700);
-      const ta = [...box.querySelectorAll("textarea")].find(el => visible(el)) || areas()[0];
+      // поле описания — ближайшее к вкладке по вертикали
+      const tabTop = tabEl.getBoundingClientRect().top;
+      const ta = areas().sort((a, b) => Math.abs(a.getBoundingClientRect().top - tabTop) - Math.abs(b.getBoundingClientRect().top - tabTop))[0];
       (ta && await smartSet(ta, textOf(l)) ? ok : miss).push(`Описание (${l})`);
       ta && ta.dispatchEvent(new Event("blur", { bubbles: true }));
       await sleep(300);
